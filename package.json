@@ -4,8 +4,10 @@
   "description": "Search Rust Standard Library documentation",
   "icon": "command-icon.png",
   "author": "patrick-ehimen",
+  "contributors": [],
   "categories": [
-    "Other"
+    "Documentation",
+    "Developer Tools"
   ],
   "license": "MIT",
   "commands": [

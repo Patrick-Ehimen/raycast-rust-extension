@@ -2,11 +2,11 @@ import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
 export interface DocItem {
-    name: string;
-    path: string;
-    desc: string;
-    type: string;
-    url: string;
+  name: string;
+  path: string;
+  desc: string;
+  type: string;
+  url: string;
 }
 
 const STD_DOCS_URL = "https://doc.rust-lang.org/std/";
@@ -22,206 +22,222 @@ const ALLOC_ITEMS_URL = "https://doc.rust-lang.org/alloc/all.html";
 const ITEM_REGEX = /<a href="([^"]+)">([^<]+)<\/a>/g;
 
 export const fetchSearchIndex = async (): Promise<DocItem[]> => {
-    try {
-        const urls = [ALL_ITEMS_URL, STD_INDEX_URL, CORE_ITEMS_URL, ALLOC_ITEMS_URL];
-        const responses = await Promise.all(urls.map(url => fetch(url)));
+  try {
+    const urls = [
+      ALL_ITEMS_URL,
+      STD_INDEX_URL,
+      CORE_ITEMS_URL,
+      ALLOC_ITEMS_URL,
+    ];
+    const responses = await Promise.all(urls.map((url) => fetch(url)));
 
-        const texts = await Promise.all(responses.map(async (res, index) => {
-            if (!res.ok) {
-                console.warn(`Failed to fetch ${urls[index]}`);
-                return "";
-            }
-            return res.text();
-        }));
+    const texts = await Promise.all(
+      responses.map(async (res, index) => {
+        if (!res.ok) {
+          console.warn(`Failed to fetch ${urls[index]}`);
+          return "";
+        }
+        return res.text();
+      }),
+    );
 
-        const stdAllHtml = texts[0];
-        const stdIndexHtml = texts[1];
-        const coreHtml = texts[2];
-        const allocHtml = texts[3];
+    const stdAllHtml = texts[0];
+    const stdIndexHtml = texts[1];
+    const coreHtml = texts[2];
+    const allocHtml = texts[3];
 
-        // std/index.html contains Keywords, Primitive Types, Modules, Macros
-        const stdIndexItems = parseIndexItems(stdIndexHtml);
+    // std/index.html contains Keywords, Primitive Types, Modules, Macros
+    const stdIndexItems = parseIndexItems(stdIndexHtml);
 
-        // all.html contains Structs, Enums, Traits, Functions, Typedefs, Unions, Constants, Statics
-        // but usually MISSES Modules and Primitives and Keywords.
-        const stdItems = parseHtmlIndex(stdAllHtml, STD_DOCS_URL);
+    // all.html contains Structs, Enums, Traits, Functions, Typedefs, Unions, Constants, Statics
+    // but usually MISSES Modules and Primitives and Keywords.
+    const stdItems = parseHtmlIndex(stdAllHtml, STD_DOCS_URL);
 
-        const coreItems = parseHtmlIndex(coreHtml, "https://doc.rust-lang.org/core/");
-        const allocItems = parseHtmlIndex(allocHtml, "https://doc.rust-lang.org/alloc/");
+    const coreItems = parseHtmlIndex(
+      coreHtml,
+      "https://doc.rust-lang.org/core/",
+    );
+    const allocItems = parseHtmlIndex(
+      allocHtml,
+      "https://doc.rust-lang.org/alloc/",
+    );
 
-        // Merge logic: Index items (Keywords, Modules) should take precedence or at least exist.
-        // De-duplication: if name and type match?
-        // Let's just concat. Raycast list handles duplicates by key, but we need unique key.
-        // DocItem doesn't have ID.
-        // We'll trust the user search.
+    // Merge logic: Index items (Keywords, Modules) should take precedence or at least exist.
+    // De-duplication: if name and type match?
+    // Let's just concat. Raycast list handles duplicates by key, but we need unique key.
+    // DocItem doesn't have ID.
+    // We'll trust the user search.
 
-        return [...stdIndexItems, ...stdItems, ...coreItems, ...allocItems];
-    } catch (error) {
-        console.error("Error fetching documentation:", error);
-        throw error;
-    }
+    return [...stdIndexItems, ...stdItems, ...coreItems, ...allocItems];
+  } catch (error) {
+    console.error("Error fetching documentation:", error);
+    throw error;
+  }
 };
 
 const parseIndexItems = (html: string): DocItem[] => {
-    if (!html) return [];
-    try {
-        const $ = cheerio.load(html);
-        const items: DocItem[] = [];
+  if (!html) return [];
+  try {
+    const $ = cheerio.load(html);
+    const items: DocItem[] = [];
 
-        // Selectors for different sections in index.html
-        // Keywords: a.keyword
-        // Modules: a.mod
-        // Primitives: a.primitive
-        // Macros: a.macro
+    // Selectors for different sections in index.html
+    // Keywords: a.keyword
+    // Modules: a.mod
+    // Primitives: a.primitive
+    // Macros: a.macro
 
-        const selectors = [
-            { css: "a.keyword", type: "keyword" },
-            { css: "a.mod", type: "module" },
-            { css: "a.primitive", type: "primitive" },
-            { css: "a.macro", type: "macro" }
-        ];
+    const selectors = [
+      { css: "a.keyword", type: "keyword" },
+      { css: "a.mod", type: "module" },
+      { css: "a.primitive", type: "primitive" },
+      { css: "a.macro", type: "macro" },
+    ];
 
-        selectors.forEach(({ css, type }) => {
-            $(css).each((_, el) => {
-                const link = $(el);
-                const name = link.text();
-                const href = link.attr("href") || "";
+    selectors.forEach(({ css, type }) => {
+      $(css).each((_, el) => {
+        const link = $(el);
+        const name = link.text();
+        const href = link.attr("href") || "";
 
-                // Description is usually in the following <dd>
-                const dt = link.parent("dt");
-                const dd = dt.next("dd");
-                const desc = dd.text().trim(); // Basic plain text description
+        // Description is usually in the following <dd>
+        const dt = link.parent("dt");
+        const dd = dt.next("dd");
+        const desc = dd.text().trim(); // Basic plain text description
 
-                if (name && href) {
-                    items.push({
-                        name,
-                        path: name, // Top-level usually
-                        desc,
-                        type,
-                        url: new URL(href, STD_DOCS_URL).toString(),
-                    });
-                }
-            });
-        });
+        if (name && href) {
+          items.push({
+            name,
+            path: name, // Top-level usually
+            desc,
+            type,
+            url: new URL(href, STD_DOCS_URL).toString(),
+          });
+        }
+      });
+    });
 
-        return items;
-    } catch (e) {
-        console.error("Error parsing index items", e);
-        return [];
-    }
+    return items;
+  } catch (e) {
+    console.error("Error parsing index items", e);
+    return [];
+  }
 };
 
 const parseHtmlIndex = (html: string, baseUrl: string): DocItem[] => {
-    const items: DocItem[] = [];
-    let match;
+  const items: DocItem[] = [];
+  let match;
 
-    while ((match = ITEM_REGEX.exec(html)) !== null) {
-        const href = match[1];
-        const fullPath = match[2];
+  while ((match = ITEM_REGEX.exec(html)) !== null) {
+    const href = match[1];
+    const fullPath = match[2];
 
-        if (href.startsWith("#") || href.startsWith("..") || href === "index.html") continue;
+    if (href.startsWith("#") || href.startsWith("..") || href === "index.html")
+      continue;
 
-        let type = "unknown";
-        const parts = href.split("/");
-        const filename = parts[parts.length - 1]; // e.g. "struct.Vec.html"
-        const typeMatch = filename.split(".");
+    let type = "unknown";
+    const parts = href.split("/");
+    const filename = parts[parts.length - 1]; // e.g. "struct.Vec.html"
+    const typeMatch = filename.split(".");
 
-        if (typeMatch.length >= 2) {
-            // e.g. "struct"
-            type = typeMatch[0];
-        } else if (filename === "index.html") {
-            type = "module";
-        }
-
-        type = normalizeType(type);
-
-        const pathParts = fullPath.split("::");
-        const name = pathParts[pathParts.length - 1];
-
-        items.push({
-            name,
-            path: fullPath,
-            desc: "",
-            type,
-            url: new URL(href, baseUrl).toString(),
-        });
+    if (typeMatch.length >= 2) {
+      // e.g. "struct"
+      type = typeMatch[0];
+    } else if (filename === "index.html") {
+      type = "module";
     }
 
-    return items;
+    type = normalizeType(type);
+
+    const pathParts = fullPath.split("::");
+    const name = pathParts[pathParts.length - 1];
+
+    items.push({
+      name,
+      path: fullPath,
+      desc: "",
+      type,
+      url: new URL(href, baseUrl).toString(),
+    });
+  }
+
+  return items;
 };
 
 function normalizeType(type: string): string {
-    if (type === "constant") return "const";
-    if (type === "typedef") return "type"; // "type" alias
-    return type;
+  if (type === "constant") return "const";
+  if (type === "typedef") return "type"; // "type" alias
+  return type;
 }
 
 export const fetchDocPage = async (url: string): Promise<string> => {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error("Failed to fetch page");
-        }
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        // Try top docblock
-        const docblock = $(".docblock").first();
-        if (docblock.length > 0) {
-            return convertCheerioToMarkdown($, docblock);
-        } else {
-            return "*No documentation summary found.*";
-        }
-    } catch (e) {
-        console.error("Error fetching doc page", e);
-        return "*Failed to load documentation.*";
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Failed to fetch page");
     }
-}
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-function convertCheerioToMarkdown($: any, element: any): string {
-    let markdown = "";
+    // Try top docblock
+    const docblock = $(".docblock").first();
+    if (docblock.length > 0) {
+      return convertCheerioToMarkdown($, docblock);
+    } else {
+      return "*No documentation summary found.*";
+    }
+  } catch (e) {
+    console.error("Error fetching doc page", e);
+    return "*Failed to load documentation.*";
+  }
+};
 
-    element.contents().each((_: number, el: any) => {
-        const type = el.type;
-        const tagName = el.tagName;
+function convertCheerioToMarkdown(
+  $: cheerio.Root,
+  element: cheerio.Cheerio,
+): string {
+  let markdown = "";
 
-        if (type === "text") {
-            const text = $(el).text();
-            // Avoid excessive newlines from whitespace text nodes
-            markdown += text;
-        } else if (tagName === "p") {
-            markdown += "\n" + convertCheerioToMarkdown($, $(el)).trim() + "\n\n";
-        } else if (tagName === "h1") {
-            markdown += "# " + $(el).text() + "\n\n";
-        } else if (tagName === "h2") {
-            markdown += "## " + $(el).text() + "\n\n";
-        } else if (tagName === "h3") {
-            markdown += "### " + $(el).text() + "\n\n";
-        } else if (tagName === "h4") {
-            markdown += "#### " + $(el).text() + "\n\n";
-        } else if (tagName === "pre") {
-            const code = $(el).text();
-            markdown += "\n```rust\n" + code.trim() + "\n```\n\n";
-        } else if (tagName === "code") {
-            markdown += "`" + $(el).text() + "`";
-        } else if (tagName === "a") {
-            const href = $(el).attr("href");
-            const text = convertCheerioToMarkdown($, $(el));
-            markdown += `[${text}](${href})`;
-        } else if (tagName === "ul") {
-            markdown += convertCheerioToMarkdown($, $(el)) + "\n";
-        } else if (tagName === "li") {
-            markdown += "- " + convertCheerioToMarkdown($, $(el)).trim() + "\n";
-        } else if (tagName === "div" && $(el).hasClass("example-wrap")) {
-            markdown += convertCheerioToMarkdown($, $(el));
-        } else if (tagName === "div" || tagName === "span") {
-            markdown += convertCheerioToMarkdown($, $(el));
-        } else {
-            markdown += convertCheerioToMarkdown($, $(el));
-        }
-    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  element.contents().each((_: number, el: any) => {
+    const type = el.type;
+    const tagName = el.tagName;
 
-    return markdown
-        .replace(/\n\n\n+/g, "\n\n")
-        .trim();
+    if (type === "text") {
+      const text = $(el).text();
+      // Avoid excessive newlines from whitespace text nodes
+      markdown += text;
+    } else if (tagName === "p") {
+      markdown += "\n" + convertCheerioToMarkdown($, $(el)).trim() + "\n\n";
+    } else if (tagName === "h1") {
+      markdown += "# " + $(el).text() + "\n\n";
+    } else if (tagName === "h2") {
+      markdown += "## " + $(el).text() + "\n\n";
+    } else if (tagName === "h3") {
+      markdown += "### " + $(el).text() + "\n\n";
+    } else if (tagName === "h4") {
+      markdown += "#### " + $(el).text() + "\n\n";
+    } else if (tagName === "pre") {
+      const code = $(el).text();
+      markdown += "\n```rust\n" + code.trim() + "\n```\n\n";
+    } else if (tagName === "code") {
+      markdown += "`" + $(el).text() + "`";
+    } else if (tagName === "a") {
+      const href = $(el).attr("href");
+      const text = convertCheerioToMarkdown($, $(el));
+      markdown += `[${text}](${href})`;
+    } else if (tagName === "ul") {
+      markdown += convertCheerioToMarkdown($, $(el)) + "\n";
+    } else if (tagName === "li") {
+      markdown += "- " + convertCheerioToMarkdown($, $(el)).trim() + "\n";
+    } else if (tagName === "div" && $(el).hasClass("example-wrap")) {
+      markdown += convertCheerioToMarkdown($, $(el));
+    } else if (tagName === "div" || tagName === "span") {
+      markdown += convertCheerioToMarkdown($, $(el));
+    } else {
+      markdown += convertCheerioToMarkdown($, $(el));
+    }
+  });
+
+  return markdown.replace(/\n\n\n+/g, "\n\n").trim();
 }
