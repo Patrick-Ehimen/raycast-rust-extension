@@ -150,7 +150,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-If you encounter any issues or have suggestions, please [open an issue](https://github.com/0xOse/raycast-rust-extension/issues) on GitHub.
+If you encounter any issues or have suggestions, please [open an issue](https://github.com/patrick-ehimen/raycast-rust-extension/issues) on GitHub.
 
 ---
 
