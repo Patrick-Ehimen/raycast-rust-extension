@@ -3,9 +3,9 @@
   "title": "Rust Documentation",
   "description": "Search Rust Standard Library documentation",
   "icon": "command-icon.png",
-  "author": "Antigravity",
+  "author": "0xOse",
   "categories": [
-    "Developer Tools"
+    "Other"
   ],
   "license": "MIT",
   "commands": [
