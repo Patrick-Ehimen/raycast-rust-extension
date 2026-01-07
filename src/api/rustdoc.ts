@@ -209,7 +209,8 @@ function convertCheerioToMarkdown(
       // Avoid excessive newlines from whitespace text nodes
       markdown += text;
     } else if (tagName === "p") {
-      markdown += "\n" + convertCheerioToMarkdown($, $(el), baseUrl).trim() + "\n\n";
+      markdown +=
+        "\n" + convertCheerioToMarkdown($, $(el), baseUrl).trim() + "\n\n";
     } else if (tagName === "h1") {
       markdown += "# " + $(el).text() + "\n\n";
     } else if (tagName === "h2") {
@@ -231,7 +232,7 @@ function convertCheerioToMarkdown(
           // Resolve relative URLs to absolute ones
           const absoluteUrl = new URL(href, baseUrl).toString();
           markdown += `[${text}](${absoluteUrl})`;
-        } catch (e) {
+        } catch {
           // Fallback to original text if URL parsing fails
           markdown += text;
         }
@@ -241,7 +242,8 @@ function convertCheerioToMarkdown(
     } else if (tagName === "ul") {
       markdown += convertCheerioToMarkdown($, $(el), baseUrl) + "\n";
     } else if (tagName === "li") {
-      markdown += "- " + convertCheerioToMarkdown($, $(el), baseUrl).trim() + "\n";
+      markdown +=
+        "- " + convertCheerioToMarkdown($, $(el), baseUrl).trim() + "\n";
     } else if (tagName === "div" && $(el).hasClass("example-wrap")) {
       markdown += convertCheerioToMarkdown($, $(el), baseUrl);
     } else if (tagName === "div" || tagName === "span") {
